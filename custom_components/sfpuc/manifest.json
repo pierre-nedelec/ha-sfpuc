@@ -1,6 +1,7 @@
 {
   "domain": "sfpuc",
   "name": "SFPUC Water Usage",
+  "version": "0.1.0",
   "codeowners": [
     "@pierre-nedelec"
   ],
