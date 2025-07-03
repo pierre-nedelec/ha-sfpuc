@@ -41,13 +41,6 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.username = entry_data["username"]
         self.password = entry_data["password"]
 
-        @callback
-        def _dummy_listener() -> None:
-            pass
-
-        # Register a dummy listener to ensure periodic updates
-        self.async_add_listener(_dummy_listener)
-
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch new data from the last recorded date and insert into statistics."""
         try:
@@ -64,30 +57,37 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Fetch data starting from the day after the last recorded time
             if last_stats_time:
-                start_date = (last_stats_time + timedelta(days=0)).strftime("%m/%d/%Y")
+                # Start from the day after the last recorded time to avoid duplicates
+                start_date = (last_stats_time + timedelta(days=1)).strftime("%m/%d/%Y")
+                _LOGGER.info(f"Fetching data from {start_date} (day after last recorded: {last_stats_time.strftime('%m/%d/%Y')})")
             else:
                 # If no previous data, fetch from an arbitrary recent past date
-                # (e.g., 3 months ago) - will be adjusted to the earliest available date
+                # (e.g., 90 days ago) - will be adjusted to the earliest available date
                 # by the download function
-                start_date = (dt_util.now() - timedelta(days=120)).strftime("%m/%d/%Y")
+                start_date = (dt_util.now() - timedelta(days=90)).strftime("%m/%d/%Y")
+                _LOGGER.info(f"No previous data found, fetching from {start_date}")
 
             end_date = dt_util.now().strftime("%m/%d/%Y")
 
             # Download new usage data from the last recorded time to now
-            _LOGGER.debug("Fetching data from %s to %s", start_date, end_date)
+            _LOGGER.info("Fetching data from %s to %s", start_date, end_date)
             parsed_data = await self.hass.async_add_executor_job(
                 download_usage_for_multiple_days, session, start_date, end_date
             )
+            
             if parsed_data:
-                _LOGGER.debug("Parsed new data: %s", parsed_data)
+                _LOGGER.info("Successfully fetched %d new data points", len(parsed_data))
                 # Insert the new data into statistics
                 await self._insert_statistics(parsed_data)
-                _LOGGER.debug("Data inserted into statistics")
+                _LOGGER.info("Data inserted into statistics")
+            else:
+                _LOGGER.info("No new data available")
+
+            return parsed_data
 
         except Exception as err:
+            _LOGGER.exception("Error fetching data")
             raise UpdateFailed(f"Error fetching data: {err}") from err
-        else:
-            return parsed_data
 
     async def _get_last_recorded_time(self) -> datetime | None:
         """Get the last recorded timestamp from Home Assistant statistics."""
@@ -95,7 +95,7 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         last_stat = await get_instance(self.hass).async_add_executor_job(
             get_last_statistics, self.hass, 1, consumption_statistic_id, True, set()
         )
-        if last_stat:
+        if last_stat and consumption_statistic_id in last_stat:
             # Get the most recent timestamp
             last_stats_time = last_stat[consumption_statistic_id][0]["start"]
             # convert timestamp (just a long number) to readable date
@@ -107,21 +107,28 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _insert_statistics(self, data: dict[str, Any]) -> None:
         """Insert SFPUC water usage statistics into Home Assistant's recorder."""
         consumption_statistic_id = f"{DOMAIN}:sfpuc_water_usage"
-        _LOGGER.debug("Updating statistics for %s", consumption_statistic_id)
+        _LOGGER.info("Updating statistics for %s", consumption_statistic_id)
 
-        # Get the last statistic time
+        # Get the last statistic sum to continue from where we left off
         last_stat = await get_instance(self.hass).async_add_executor_job(
             get_last_statistics, self.hass, 1, consumption_statistic_id, True, set()
         )
-        last_stats_time = None
-        if last_stat:
-            last_stats_time = last_stat[consumption_statistic_id][0]["start"]
+        
+        # Start with the last known sum, or 0 if no previous data
+        consumption_sum = 0.0
+        if last_stat and consumption_statistic_id in last_stat:
+            last_sum = last_stat[consumption_statistic_id][0].get("sum")
+            if last_sum is not None:
+                consumption_sum = last_sum
+                _LOGGER.info("Continuing from last sum: %s", consumption_sum)
 
         consumption_statistics = []
-        consumption_sum = 0.0
-
+        
+        # Sort data by timestamp to ensure correct order
+        sorted_data = sorted(data.items(), key=lambda x: x[0])
+        
         # Insert the data into Home Assistant's statistics system
-        for timestamp, consumption in data.items():
+        for timestamp, consumption in sorted_data:
             # Ensure the timestamp is timezone-aware, convert it to UTC if necessary
             if (
                 timestamp.tzinfo is None
@@ -129,10 +136,14 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ):
                 timestamp = dt_util.as_utc(timestamp)
 
-            # Only insert data newer than the last statistics time
-            if last_stats_time and timestamp.timestamp() <= last_stats_time:
-                continue
+            # Skip if we already have this data point
+            if last_stat and consumption_statistic_id in last_stat:
+                last_stats_time = last_stat[consumption_statistic_id][0]["start"]
+                if timestamp.timestamp() <= last_stats_time:
+                    _LOGGER.debug("Skipping duplicate data point: %s", timestamp)
+                    continue
 
+            # Add to cumulative sum
             consumption_sum += consumption
             consumption_statistics.append(
                 StatisticData(
@@ -141,6 +152,10 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     sum=consumption_sum,
                 )
             )
+
+        if not consumption_statistics:
+            _LOGGER.info("No new statistics to add")
+            return
 
         # Metadata for the statistic
         consumption_metadata = StatisticMetaData(
@@ -152,8 +167,8 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             unit_of_measurement=UnitOfVolume.GALLONS,
         )
 
-        _LOGGER.debug(
-            "Adding %s statistics for %s",
+        _LOGGER.info(
+            "Adding %s new statistics for %s",
             len(consumption_statistics),
             consumption_statistic_id,
         )

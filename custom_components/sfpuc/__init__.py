@@ -23,9 +23,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Set up the coordinator to fetch historical data
     coordinator = SFPUCCoordinator(hass, entry.data)
+    
+    # Store the coordinator in hass.data first
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    
+    # Now do the initial refresh
     await coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    # The coordinator will automatically continue updating based on UPDATE_INTERVAL
+    _LOGGER.info("SFPUC integration setup complete, coordinator will update every %d seconds", UPDATE_INTERVAL)
 
     return True
 
