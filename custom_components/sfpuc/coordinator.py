@@ -87,6 +87,13 @@ class SFPUCCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             # Use available end date, but don't go beyond today
             today = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            
+            # Ensure both datetimes are timezone-aware for comparison
+            if available_end.tzinfo is None:
+                available_end = dt_util.as_utc(available_end)
+            if today.tzinfo is None:
+                today = dt_util.as_utc(today)
+                
             end_date = min(available_end, today).strftime("%m/%d/%Y")
 
             # Download new usage data
