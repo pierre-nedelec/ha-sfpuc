@@ -1,7 +1,7 @@
 {
   "domain": "sfpuc",
   "name": "SFPUC Water Usage",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "codeowners": [
     "@pierre-nedelec"
   ],
@@ -14,8 +14,12 @@
   "iot_class": "cloud_polling",
   "requirements": [
     "requests>=2.31.0",
-    "beautifulsoup4==4.12.2"
+    "beautifulsoup4>=4.12.0"
   ],
   "ssdp": [],
-  "zeroconf": []
+  "zeroconf": [],
+  "after_dependencies": [
+    "recorder"
+  ],
+  "integration_type": "service"
 }

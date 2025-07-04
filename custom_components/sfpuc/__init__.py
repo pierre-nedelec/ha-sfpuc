@@ -12,7 +12,7 @@ from .coordinator import SFPUCCoordinator
 from .login import login
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = []  # No sensor platform for live updates
+PLATFORMS = ["sensor"]  # Add sensor platform
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -30,6 +30,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Now do the initial refresh
     await coordinator.async_config_entry_first_refresh()
 
+    # Forward the setup to the sensor platform
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
     # The coordinator will automatically continue updating based on UPDATE_INTERVAL
     _LOGGER.info("SFPUC integration setup complete, coordinator will update every %d seconds", UPDATE_INTERVAL)
 
@@ -38,7 +41,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = True  # No platforms to unload
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
+    
     return unload_ok
