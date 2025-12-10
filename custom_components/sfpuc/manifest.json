@@ -1,7 +1,7 @@
 {
   "domain": "sfpuc",
   "name": "SFPUC Water Usage",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "codeowners": [
     "@pierre-nedelec"
   ],
@@ -10,6 +10,7 @@
     "recorder"
   ],
   "documentation": "https://github.com/pierre-nedelec/ha-sfpuc",
+  "integration_type": "service",
   "issue_tracker": "https://github.com/pierre-nedelec/ha-sfpuc/issues",
   "iot_class": "cloud_polling",
   "requirements": [

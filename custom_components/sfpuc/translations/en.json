@@ -1,21 +1,41 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Device is already configured"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "host": "Host",
-                    "password": "Password",
-                    "username": "Username"
-                }
-            }
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Username",
+          "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate SFPUC",
+        "description": "Please enter your password for {username}",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "reauth_successful": "Re-authentication was successful"
     }
+  },
+  "entity": {
+    "sensor": {
+      "latest_usage": {
+        "name": "Latest water usage"
+      },
+      "total_usage": {
+        "name": "Total water usage"
+      },
+      "last_update": {
+        "name": "Last update"
+      }
+    }
+  }
 }
