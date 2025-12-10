@@ -2,25 +2,12 @@
   "domain": "sfpuc",
   "name": "SFPUC Water Usage",
   "version": "0.3.0",
-  "codeowners": [
-    "@pierre-nedelec"
-  ],
+  "codeowners": ["@pierre-nedelec"],
   "config_flow": true,
-  "dependencies": [
-    "recorder"
-  ],
+  "dependencies": ["recorder"],
   "documentation": "https://github.com/pierre-nedelec/ha-sfpuc",
-  "integration_type": "service",
   "issue_tracker": "https://github.com/pierre-nedelec/ha-sfpuc/issues",
+  "integration_type": "service",
   "iot_class": "cloud_polling",
-  "requirements": [
-    "requests>=2.31.0",
-    "beautifulsoup4>=4.12.0"
-  ],
-  "ssdp": [],
-  "zeroconf": [],
-  "after_dependencies": [
-    "recorder"
-  ],
-  "integration_type": "service"
+  "requirements": ["requests==2.31.0", "beautifulsoup4==4.12.0"]
 }
